@@ -200,7 +200,15 @@ io.on("connection", (socket) => {
 
 async function start() {
   try {
+    console.log("=== STARTUP DEBUG ===");
+    console.log("MONGO_URI set:", !!process.env.MONGO_URI);
+    console.log("JWT_SECRET set:", !!process.env.JWT_SECRET);
+    console.log("PORT:", process.env.PORT);
+    console.log("NODE_ENV:", process.env.NODE_ENV);
+    console.log("=====================");
+
     await connectDB();
+    console.log("DB connected successfully");
 
     await processDiscussionNotificationQueue();
     discussionNotificationTimer = setInterval(() => {
@@ -213,7 +221,8 @@ async function start() {
       console.log(`Server running on http://localhost:${PORT}`);
     });
   } catch (err) {
-    console.error("Failed to start server:", err);
+    console.log("STARTUP FAILED:", err.message);
+    console.log("Full error:", JSON.stringify(err, Object.getOwnPropertyNames(err)));
     process.exit(1);
   }
 }
