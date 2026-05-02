@@ -13,8 +13,17 @@ const conversationRoutes = require("./routes/conversationRoutes.js");
 const app = express();
 const mongoose = require("mongoose");
 
+const corsOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173"
+];
+if (process.env.CLIENT_URL) {
+  corsOrigins.push(process.env.CLIENT_URL.replace(/\/$/, ""));
+}
+
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+  origin: corsOrigins,
   credentials: true
 }));
 app.use(express.json({ limit: "25mb" }));
