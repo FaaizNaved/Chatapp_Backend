@@ -5,6 +5,17 @@ const Conversation = require("./models/conversation.js");
 
 dotenv.config();
 
+// Catch ANY unhandled error so we can see it in Render logs
+process.on('uncaughtException', (err) => {
+  console.log('UNCAUGHT EXCEPTION:', err.message);
+  console.log(err.stack);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.log('UNHANDLED REJECTION:', reason);
+  process.exit(1);
+});
+
 const app = require("./index.js");
 const connectDB = require("./config/db.js");
 const { verifySocketJWT } = require("./middlewares/auth.js");
