@@ -13,7 +13,7 @@ async function sendEmail({ to, subject, html, senderName = "ChatSphere" }) {
 
   if (apiKey) {
     // Production: use Brevo HTTP API
-    const senderEmail = process.env.SMTP_USER || process.env.DEVELOPER_EMAIL || "noreply@chatsphere.app";
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.DEVELOPER_EMAIL || process.env.SMTP_USER || "noreply@chatsphere.app";
     console.log(`[EMAIL] Sending via Brevo API to: ${to}`);
 
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {
