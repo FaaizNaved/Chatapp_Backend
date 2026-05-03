@@ -3,6 +3,8 @@ const {
   sendVerificationCode,
   verifyCode,
   register,
+  registerSendOtp,
+  registerVerifyOtp,
   login,
   logout,
   requestPasswordReset,
@@ -16,6 +18,8 @@ const router = express.Router();
 router.post("/send-verification-code", sendVerificationCode);
 router.post("/verify-code", verifyCode);
 router.post("/register", register);
+router.post("/register/send-otp", registerSendOtp);
+router.post("/register/verify-otp", registerVerifyOtp);
 router.post("/login", login);
 router.post("/logout", verifyJWT, logout);
 router.post("/forgot-password", requestPasswordReset);
