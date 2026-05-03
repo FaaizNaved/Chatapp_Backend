@@ -36,7 +36,7 @@ const allowedOrigins = (() => {
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000"
   ];
-  if (process.env.CLIENT_URL) base.push(process.env.CLIENT_URL);
+  if (process.env.CLIENT_URL) base.push(process.env.CLIENT_URL.replace(/\/+$/, ""));
   return base;
 })();
 
@@ -211,15 +211,7 @@ io.on("connection", (socket) => {
 
 async function start() {
   try {
-    console.log("=== STARTUP DEBUG ===");
-    console.log("MONGO_URI set:", !!process.env.MONGO_URI);
-    console.log("JWT_SECRET set:", !!process.env.JWT_SECRET);
-    console.log("PORT:", process.env.PORT);
-    console.log("NODE_ENV:", process.env.NODE_ENV);
-    console.log("=====================");
-
     await connectDB();
-    console.log("DB connected successfully");
 
     await processDiscussionNotificationQueue();
     discussionNotificationTimer = setInterval(() => {
@@ -229,11 +221,10 @@ async function start() {
     }, 30 * 1000);
 
     server.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
     });
   } catch (err) {
-    console.log("STARTUP FAILED:", err.message);
-    console.log("Full error:", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+    console.error("Failed to start server:", err.message || err);
     process.exit(1);
   }
 }
