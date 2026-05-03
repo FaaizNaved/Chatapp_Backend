@@ -4,7 +4,7 @@
  * Phone verification is required only if phone is provided during signup.
  */
 const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
+const { sendEmail } = require("../services/emailService.js");
 const User = require("../models/user.js");
 const { createUserSession, revokeSession } = require("../services/sessionService.js");
 const { buildUserIdentity } = require("../utils/auth.js");
@@ -16,44 +16,11 @@ function inferIdentifierType(identifier) {
 }
 
 /* ── OTP helpers ──────────────────────────────────────────── */
-const pendingRegistrations = new Map(); // key -> { formData, otpEmail, otpPhone, emailCode, phoneCode, emailVerified, phoneVerified, expiresAt }
+const pendingRegistrations = new Map();
 function generateOtp() { return String(Math.floor(100000 + Math.random() * 900000)); }
 
-async function getTransporter() {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      connectionTimeout: 30000,
-      greetingTimeout: 30000,
-      socketTimeout: 30000,
-    });
-  }
-  const testAccount = await nodemailer.createTestAccount();
-  return nodemailer.createTransport({
-    host: "smtp.ethereal.email", port: 587, secure: false,
-    auth: { user: testAccount.user, pass: testAccount.pass },
-  });
-}
-
 async function sendEmailOtp(email, code) {
-  console.log("[SMTP] Attempting to send OTP to:", email);
-  console.log("[SMTP] Config: host=", process.env.SMTP_HOST, "user=", process.env.SMTP_USER, "pass_length=", (process.env.SMTP_PASS || "").length);
-  const transporter = await getTransporter();
-
-  // Verify SMTP connection first
-  try {
-    await transporter.verify();
-    console.log("[SMTP] Connection verified OK");
-  } catch (verifyErr) {
-    console.log("[SMTP] Verify FAILED:", verifyErr.message, verifyErr.code, verifyErr.command);
-    throw verifyErr;
-  }
-
-  const info = await transporter.sendMail({
-    from: `"ChatSphere" <${process.env.SMTP_USER || "noreply@chatsphere.app"}>`,
+  await sendEmail({
     to: email,
     subject: "ChatSphere — Your verification code",
     html: `
@@ -66,7 +33,6 @@ async function sendEmailOtp(email, code) {
         <p style="color:#64748b;font-size:13px;margin:0">This code expires in 10 minutes. Do not share it.</p>
       </div>`,
   });
-  console.log("[SMTP] Email sent OK, messageId:", info.messageId);
 }
 
 async function sendPhoneOtp(phone, code) {

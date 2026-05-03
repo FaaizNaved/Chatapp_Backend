@@ -1,10 +1,10 @@
-const nodemailer = require("nodemailer");
 const Contact = require("../models/contact.js");
+const { sendEmail } = require("../services/emailService.js");
 
 /**
  * POST /api/contact
  * Body: { name, email, phone, message }
- * Saves enquiry to DB, then attempts to send notification emails.
+ * Saves enquiry to DB, then attempts to send notification emails via Brevo API.
  */
 exports.handleContactForm = async (req, res) => {
   try {
@@ -29,40 +29,17 @@ exports.handleContactForm = async (req, res) => {
       emailSent: false,
     });
 
-    // Attempt to send emails (with timeout so we don't hang)
+    // Attempt to send emails
     let emailSent = false;
     try {
-      let transporter;
-      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT || 587),
-          secure: process.env.SMTP_SECURE === "true",
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-          connectionTimeout: 30000,
-          greetingTimeout: 30000,
-          socketTimeout: 30000,
-        });
-      } else {
-        const testAccount = await nodemailer.createTestAccount();
-        transporter = nodemailer.createTransport({
-          host: "smtp.ethereal.email",
-          port: 587,
-          secure: false,
-          auth: { user: testAccount.user, pass: testAccount.pass },
-        });
-      }
-
       const devEmail = process.env.DEVELOPER_EMAIL || "mfaaiznaved786@gmail.com";
       const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 
-      const devMailOptions = {
-        from: `"ChatSphere Contact" <${process.env.SMTP_USER || "noreply@chatsphere.app"}>`,
+      // Email to developer
+      await sendEmail({
         to: devEmail,
         subject: `🚀 New Integration Enquiry from ${name || email}`,
+        senderName: "ChatSphere Contact",
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;
             background:#0f1117;color:#e2e8f0;border-radius:12px;">
@@ -81,10 +58,10 @@ exports.handleContactForm = async (req, res) => {
             </table>
           </div>
         `,
-      };
+      });
 
-      const senderMailOptions = {
-        from: `"ChatSphere" <${process.env.SMTP_USER || "noreply@chatsphere.app"}>`,
+      // Thank-you email to sender
+      await sendEmail({
         to: email,
         subject: "We received your enquiry — ChatSphere",
         html: `
@@ -99,18 +76,13 @@ exports.handleContactForm = async (req, res) => {
             <p style="color:#64748b;font-size:13px;margin:0">— The ChatSphere Team</p>
           </div>
         `,
-      };
+      });
 
-      await Promise.all([
-        transporter.sendMail(devMailOptions),
-        transporter.sendMail(senderMailOptions),
-      ]);
       emailSent = true;
     } catch (mailErr) {
-      console.error("contact form mail error (saved to DB):", mailErr.message);
+      console.log("contact form mail error (saved to DB):", mailErr.message);
     }
 
-    // Update DB record
     if (emailSent) {
       contact.emailSent = true;
       await contact.save();
