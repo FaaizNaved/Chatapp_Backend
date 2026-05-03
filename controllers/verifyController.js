@@ -2,35 +2,15 @@
  * verifyController.js
  * Send and verify OTP for email/phone in profile settings.
  */
-const nodemailer = require("nodemailer");
 const User = require("../models/user.js");
 const { buildUserIdentity } = require("../utils/auth.js");
+const { sendEmail } = require("../services/emailService.js");
 
 // In-memory OTP store: userId+field -> { code, expiresAt }
 const otpStore = new Map();
 
 function makeKey(userId, field) { return `${userId}:${field}`; }
 function generateOtp() { return String(Math.floor(100000 + Math.random() * 900000)); }
-
-async function getTransporter() {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      connectionTimeout: 30000,
-      greetingTimeout: 30000,
-      socketTimeout: 30000,
-    });
-  }
-  const testAccount = await nodemailer.createTestAccount();
-  const t = nodemailer.createTransport({
-    host: "smtp.ethereal.email", port: 587, secure: false,
-    auth: { user: testAccount.user, pass: testAccount.pass },
-  });
-  return t;
-}
 
 /* POST /api/verify/send-otp
    body: { field: "email"|"phone", value: "..." }
@@ -59,9 +39,7 @@ exports.sendOtp = async (req, res) => {
     otpStore.set(key, { code, value: value.trim().toLowerCase(), expiresAt: Date.now() + 10 * 60 * 1000 });
 
     if (field === "email") {
-      const transporter = await getTransporter();
-      const info = await transporter.sendMail({
-        from: `"ChatSphere" <${process.env.SMTP_USER || "noreply@chatsphere.app"}>`,
+      await sendEmail({
         to: value.trim(),
         subject: "ChatSphere — Your verification code",
         html: `
@@ -74,9 +52,6 @@ exports.sendOtp = async (req, res) => {
             <p style="color:#64748b;font-size:13px;margin:0">This code expires in 10 minutes. Do not share it.</p>
           </div>`,
       });
-      if (process.env.NODE_ENV !== "production") {
-        console.log("OTP preview:", nodemailer.getTestMessageUrl(info));
-      }
     } else {
       // Phone: send SMS via Twilio
       if (process.env.TWILIO_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE) {
