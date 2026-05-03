@@ -40,8 +40,20 @@ async function getTransporter() {
 }
 
 async function sendEmailOtp(email, code) {
+  console.log("[SMTP] Attempting to send OTP to:", email);
+  console.log("[SMTP] Config: host=", process.env.SMTP_HOST, "user=", process.env.SMTP_USER, "pass_length=", (process.env.SMTP_PASS || "").length);
   const transporter = await getTransporter();
-  await transporter.sendMail({
+
+  // Verify SMTP connection first
+  try {
+    await transporter.verify();
+    console.log("[SMTP] Connection verified OK");
+  } catch (verifyErr) {
+    console.log("[SMTP] Verify FAILED:", verifyErr.message, verifyErr.code, verifyErr.command);
+    throw verifyErr;
+  }
+
+  const info = await transporter.sendMail({
     from: `"ChatSphere" <${process.env.SMTP_USER || "noreply@chatsphere.app"}>`,
     to: email,
     subject: "ChatSphere — Your verification code",
@@ -55,6 +67,7 @@ async function sendEmailOtp(email, code) {
         <p style="color:#64748b;font-size:13px;margin:0">This code expires in 10 minutes. Do not share it.</p>
       </div>`,
   });
+  console.log("[SMTP] Email sent OK, messageId:", info.messageId);
 }
 
 async function sendPhoneOtp(phone, code) {
@@ -150,7 +163,8 @@ exports.registerSendOtp = async (req, res) => {
 
     return res.status(400).json({ success: false, message: "Invalid field. Use 'email' or 'phone'." });
   } catch (err) {
-    console.error("registerSendOtp error:", err);
+    console.log("registerSendOtp FULL ERROR:", err.message, "| code:", err.code, "| command:", err.command);
+    console.log("Stack:", err.stack);
     return res.status(500).json({ success: false, message: err.message || "Failed to send OTP" });
   }
 };
